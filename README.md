@@ -9,13 +9,13 @@ Works cross-platform across **Linux**, **macOS**, and **Windows**.
 │                                                                              │
 │  Server:      Melbourne, VIC (ID: 14670 · speed.mel.aussiebroadband.com.au)  │
 │                                                                              │
-│  ✓ Latency:    10.3 ms  |  Min: 9.7 ms  |  Max: 11.0 ms  |  Jitter: 1.2 ms   │
+│  ✓ Latency:    10.3 ms  |  Min: 8.9 ms  |  Max: 12.1 ms  |  Jitter: 1.2 ms   │
 │                                                                              │
-│  ✓ Download:   886.01 Mbps (Avg)  |  Min: 740.2  |  Max: 895.4 Mbps           │
-│               1000.0 MB / 1000 MB (100%) in 9.4s  |   ▂▄▆▇█▇▇▇               │
+│  ✓ Download:   860.90 Mbps (Avg)  |  Min: 826.6  |  Max: 909.3 Mbps          │
+│               1000.0 MB / 1000 MB (100%) in 9.8s  |  Stability: ▇▇█▇▇▇▇▇▇▇   │
 │                                                                              │
-│  ✓ Upload:     95.33 Mbps (Avg)  |  Min: 90.8   |  Max: 97.7 Mbps             │
-│                100.0 MB / 100 MB (100%) in 8.4s   |   ▇█▇▆▃    ▂             │
+│  ✓ Upload:      91.14 Mbps (Avg)  |  Min:  86.2  |  Max:  96.3 Mbps          │
+│               100.0 MB / 100 MB (100%) in 9.2s  |  Stability: █▇▇▇▇▇▇▇▇▇     │
 │                                                                              │
 ╰────────────────────────────── ● Test Complete ───────────────────────────────╯
 ```

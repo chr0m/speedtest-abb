@@ -104,21 +104,45 @@ def restore_cursor():
 atexit.register(restore_cursor)
 
 
-def generate_sparkline(values, width=12):
-    """Generate a unicode sparkline string representing recent data points."""
+def generate_sparkline(values, width=10, max_rate=None):
+    """Generate a unicode sparkline string representing throughput consistency over time."""
     if not values:
         return " " * width
-    vals = values[-width:]
-    blocks = [" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
-    low = min(vals)
-    high = max(vals)
-    if high == low:
-        return (blocks[4] * len(vals)).rjust(width)
+    blocks = [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+
+    # Resample or stretch values to fill exactly `width` characters
+    if len(values) >= width:
+        bucket_size = len(values) / width
+        sampled = []
+        for i in range(width):
+            start = int(i * bucket_size)
+            end = int((i + 1) * bucket_size)
+            chunk = values[start:end] or [values[start]]
+            sampled.append(sum(chunk) / len(chunk))
+    elif len(values) == 1:
+        sampled = values * width
+    else:
+        # Interpolate across width so the graph smoothly spans the full width
+        sampled = []
+        n = len(values)
+        for i in range(width):
+            idx = (i / (width - 1)) * (n - 1)
+            i0 = int(idx)
+            i1 = min(n - 1, i0 + 1)
+            frac = idx - i0
+            sampled.append(values[i0] * (1.0 - frac) + values[i1] * frac)
+
+    high = max_rate if (max_rate and max_rate > 0) else (max(sampled) if sampled else 1.0)
+    if high <= 0:
+        return blocks[0] * width
+
     chars = []
-    for v in vals:
-        idx = int(((v - low) / (high - low)) * (len(blocks) - 1))
-        chars.append(blocks[max(0, min(len(blocks) - 1, idx))])
-    return "".join(chars).rjust(width)
+    for v in sampled:
+        ratio = max(0.0, min(1.0, v / high))
+        idx = min(len(blocks) - 1, int(ratio * (len(blocks) - 1)))
+        chars.append(blocks[idx])
+
+    return "".join(chars)
 
 
 class SpeedTracker:
@@ -131,6 +155,7 @@ class SpeedTracker:
         self.warmup_seconds = warmup_seconds
         self.history = collections.deque()
         self.rate_samples = []
+        self.sparkline_samples = []
         self.start_time = None
         self.end_time = None
 
@@ -167,8 +192,12 @@ class SpeedTracker:
         inst_mbps = (window_b * 8) / (window_duration * 1_000_000) if history_len > 1 else avg_mbps
 
         with self._lock:
-            # Capture steady-state rates after warmup period
-            if elapsed >= self.warmup_seconds and inst_mbps > 5.0:
+            # Capture throughput sample for the sparkline / history profile
+            if not self.end_time and inst_mbps > 0.1:
+                self.sparkline_samples.append(inst_mbps)
+
+            # Capture steady-state rates after warmup period while actively running
+            if not self.end_time and elapsed >= self.warmup_seconds and inst_mbps > 5.0:
                 self.rate_samples.append(inst_mbps)
 
             if len(self.rate_samples) >= 3:
@@ -186,7 +215,7 @@ class SpeedTracker:
                 min_mbps = avg_mbps
                 max_mbps = avg_mbps
 
-            recent_rates = list(self.rate_samples[-40:])
+            spark_rates = list(self.sparkline_samples) if self.sparkline_samples else [avg_mbps]
 
         return {
             "total_bytes": total_b,
@@ -195,7 +224,7 @@ class SpeedTracker:
             "inst_mbps": inst_mbps,
             "min_mbps": min_mbps,
             "max_mbps": max_mbps,
-            "rates": recent_rates,
+            "rates": spark_rates,
         }
 
 
@@ -393,7 +422,7 @@ class RichDashboard:
             d = self.download_data
             raw_mb = d["bytes"] / (1024 * 1024)
             mb = min(self.download_target_mb, raw_mb)
-            spark = generate_sparkline(d.get("rates", []), width=12)
+            spark = generate_sparkline(d.get("rates", []), width=10, max_rate=d.get("max_mbps"))
             pct = 100.0 if raw_mb >= self.download_target_mb else (mb / self.download_target_mb) * 100.0
             dl_l1 = (
                 f"[bold green]{d['avg_mbps']:7.2f} Mbps[/bold green] [dim](Avg)[/dim]  [dim]|[/dim]  "
@@ -401,7 +430,7 @@ class RichDashboard:
             )
             dl_l2 = (
                 f"[dim]{mb:.1f} MB / {self.download_target_mb:.0f} MB ({pct:.0f}%) in {d['elapsed_sec']:.1f}s[/dim]  "
-                f"[dim]|[/dim]  [bold green]{spark}[/bold green]"
+                f"[dim]|[/dim]  [dim]Stability:[/dim] [bold green]{spark}[/bold green]"
             )
             table.add_row("[bold green]✓ Download:[/bold green]", f"{dl_l1}\n{dl_l2}")
         elif self.download_live:
@@ -410,7 +439,7 @@ class RichDashboard:
             raw_mb = st["total_bytes"] / (1024 * 1024)
             mb = min(self.download_target_mb, raw_mb)
             bar = make_ascii_bar(dl["progress"], width=10)
-            spark = generate_sparkline(st.get("rates", []), width=10)
+            spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = dl["progress"] * 100.0
             dl_l1 = (
                 f"[bold green]{st['inst_mbps']:7.2f} Mbps[/bold green] [dim](Avg {st['avg_mbps']:5.1f})[/dim]  "
@@ -418,7 +447,7 @@ class RichDashboard:
             )
             dl_l2 = (
                 f"[{bar}] {pct:4.1f}% [dim]({mb:.1f} / {self.download_target_mb:.0f} MB)[/dim]  "
-                f"[dim]|[/dim]  [green]{spark}[/green]"
+                f"[dim]|[/dim]  [dim]Stability:[/dim] [green]{spark}[/green]"
             )
             table.add_row(f"[green]{dl['spin']} Download:[/green]", f"{dl_l1}\n{dl_l2}")
         else:
@@ -430,7 +459,7 @@ class RichDashboard:
             u = self.upload_data
             raw_mb = u["bytes"] / (1024 * 1024)
             mb = min(self.upload_target_mb, raw_mb)
-            spark = generate_sparkline(u.get("rates", []), width=12)
+            spark = generate_sparkline(u.get("rates", []), width=10, max_rate=u.get("max_mbps"))
             pct = 100.0 if raw_mb >= self.upload_target_mb else (mb / self.upload_target_mb) * 100.0
             ul_l1 = (
                 f"[bold blue]{u['avg_mbps']:7.2f} Mbps[/bold blue] [dim](Avg)[/dim]  [dim]|[/dim]  "
@@ -438,7 +467,7 @@ class RichDashboard:
             )
             ul_l2 = (
                 f"[dim]{mb:.1f} MB / {self.upload_target_mb:.0f} MB ({pct:.0f}%) in {u['elapsed_sec']:.1f}s[/dim]  "
-                f"[dim]|[/dim]  [bold blue]{spark}[/bold blue]"
+                f"[dim]|[/dim]  [dim]Stability:[/dim] [bold blue]{spark}[/bold blue]"
             )
             table.add_row("[bold green]✓ Upload:[/bold green]", f"{ul_l1}\n{ul_l2}")
         elif self.upload_live:
@@ -447,7 +476,7 @@ class RichDashboard:
             raw_mb = st["total_bytes"] / (1024 * 1024)
             mb = min(self.upload_target_mb, raw_mb)
             bar = make_ascii_bar(ul["progress"], width=10)
-            spark = generate_sparkline(st.get("rates", []), width=10)
+            spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = ul["progress"] * 100.0
             ul_l1 = (
                 f"[bold blue]{st['inst_mbps']:7.2f} Mbps[/bold blue] [dim](Avg {st['avg_mbps']:5.1f})[/dim]  "
@@ -455,7 +484,7 @@ class RichDashboard:
             )
             ul_l2 = (
                 f"[{bar}] {pct:4.1f}% [dim]({mb:.1f} / {self.upload_target_mb:.0f} MB)[/dim]  "
-                f"[dim]|[/dim]  [blue]{spark}[/blue]"
+                f"[dim]|[/dim]  [dim]Stability:[/dim] [blue]{spark}[/blue]"
             )
             table.add_row(f"[blue]{ul['spin']} Upload:[/blue]", f"{ul_l1}\n{ul_l2}")
         else:

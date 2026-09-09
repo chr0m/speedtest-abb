@@ -22,7 +22,28 @@ Works cross-platform across **Linux**, **macOS**, and **Windows**.
 
 ---
 
-## Key Features
+## One-Line Quick Install
+
+No cloning required! Just run the command below on any machine with Python 3:
+
+### Linux & macOS (Terminal)
+```bash
+curl -fsSL https://raw.githubusercontent.com/chr0m/speedtest-abb/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/chr0m/speedtest-abb/main/install.ps1 | iex
+```
+
+The installer will:
+1. Download the tool directly from GitHub.
+2. Set up an isolated user virtual environment with `rich` (zero system pollution).
+3. Put `speedtest-abb` into your PATH so it is immediately executable.
+
+---
+
+## Features
 
 - **Progressive Rich Live Dashboard**: Compact, width-constrained (max 84 cols) rounded interface that updates in-place at 15 Hz and freezes cleanly on completion without duplicate output.
 - **Accurate Telemetry**:
@@ -32,69 +53,6 @@ Works cross-platform across **Linux**, **macOS**, and **Windows**.
 - **Fixed Transfer Targets**: Tests **1000 MB (1 GB)** download and **100 MB** upload by default, with exact byte clamping.
 - **Zero Root / Sudo Required**: Fully installs into an isolated user-space virtual environment.
 - **Automation Ready**: Output clean, pipeable JSON via `--json`.
-
----
-
-## Installation Across Machines
-
-### 1. Linux & macOS
-Prerequisite: Python 3.8+ and Git.
-
-```bash
-# Clone the repository
-git clone git@github.com:chr0m/speedtest-abb.git
-cd speedtest-abb
-
-# Run installer
-./install.sh
-```
-
-The installer will:
-1. Create an isolated virtual environment at `~/.local/share/speedtest-abb/venv`.
-2. Install `rich` inside that environment (zero system package pollution).
-3. Install the executable launcher to `~/.local/bin/speedtest-abb`.
-
-*Ensure `~/.local/bin` is in your `$PATH`.*
-
----
-
-### 2. Windows (PowerShell)
-Prerequisite: Python 3.8+ and Git for Windows.
-
-```powershell
-# Clone the repository
-git clone git@github.com:chr0m/speedtest-abb.git
-cd speedtest-abb
-
-# Run installer
-.\install.ps1
-```
-
-The installer will:
-1. Create an isolated virtual environment at `%LOCALAPPDATA%\speedtest-abb\venv`.
-2. Install `rich` in user-space.
-3. Place `speedtest-abb.cmd` in `%LOCALAPPDATA%\Microsoft\WindowsApps` (in your user PATH by default).
-
----
-
-## Initializing Your Private GitHub Repository
-
-From this machine, push the project to your private GitHub repo:
-
-```bash
-cd ~/Projects/speedtest-abb
-
-# Option A: Using the GitHub CLI (gh)
-gh repo create speedtest-abb --private --source=. --remote=origin --push
-
-# Option B: Using standard Git
-git init
-git add .
-git commit -m "Initial commit of speedtest-abb"
-git branch -M main
-git remote add origin git@github.com:chr0m/speedtest-abb.git
-git push -u origin main
-```
 
 ---
 

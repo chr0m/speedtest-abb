@@ -186,10 +186,14 @@ class SpeedTracker:
             oldest = self.history[0][0] if history_len > 0 else now
 
         elapsed = max(0.001, now - (self.start_time or now))
-        avg_mbps = (total_b * 8) / (elapsed * 1_000_000)
+        avg_mbps = (total_b * 8) / (elapsed * 1_000_000) if elapsed >= 0.05 else 0.0
 
-        window_duration = max(0.001, now - oldest)
-        inst_mbps = (window_b * 8) / (window_duration * 1_000_000) if history_len > 1 else avg_mbps
+        if elapsed < self.window_seconds:
+            # Before the sliding window has populated, use cumulative rate to avoid microsecond chunk interval spikes
+            inst_mbps = avg_mbps
+        else:
+            window_duration = max(0.1, now - oldest)
+            inst_mbps = (window_b * 8) / (window_duration * 1_000_000)
 
         with self._lock:
             # Capture throughput sample for the sparkline / history profile
@@ -203,9 +207,14 @@ class SpeedTracker:
             if self.rate_samples:
                 min_mbps = min(self.rate_samples)
                 max_mbps = max(self.rate_samples)
-            else:
+            elif self.end_time:
+                # Test finished before warmup elapsed (e.g. very small test payload)
                 min_mbps = avg_mbps
                 max_mbps = avg_mbps
+            else:
+                # Live warmup in progress: Min and Max are not yet established
+                min_mbps = None
+                max_mbps = None
 
             spark_rates = list(self.sparkline_samples) if self.sparkline_samples else [avg_mbps]
 
@@ -433,9 +442,11 @@ class RichDashboard:
             bar = make_ascii_bar(dl["progress"], width=8)
             spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = dl["progress"] * 100.0
+            min_str = f"Min: {st['min_mbps']:5.1f}" if st["min_mbps"] is not None else "Min:    --"
+            max_str = f"Max: {st['max_mbps']:5.1f}" if st["max_mbps"] is not None else "Max:    --"
             dl_l1 = (
                 f"[bold green]{st['inst_mbps']:7.2f} Mbps[/bold green] [dim](Avg {st['avg_mbps']:5.1f})[/dim]  "
-                f"[dim]|[/dim]  Min: {st['min_mbps']:5.1f}  [dim]|[/dim]  Max: {st['max_mbps']:5.1f}"
+                f"[dim]|[/dim]  {min_str}  [dim]|[/dim]  {max_str}"
             )
             dl_l2 = (
                 f"[{bar}] {pct:4.1f}% [dim]({mb:.0f}/{self.download_target_mb:.0f} MB)[/dim]  "
@@ -470,9 +481,11 @@ class RichDashboard:
             bar = make_ascii_bar(ul["progress"], width=8)
             spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = ul["progress"] * 100.0
+            min_str = f"Min: {st['min_mbps']:5.1f}" if st["min_mbps"] is not None else "Min:    --"
+            max_str = f"Max: {st['max_mbps']:5.1f}" if st["max_mbps"] is not None else "Max:    --"
             ul_l1 = (
                 f"[bold blue]{st['inst_mbps']:7.2f} Mbps[/bold blue] [dim](Avg {st['avg_mbps']:5.1f})[/dim]  "
-                f"[dim]|[/dim]  Min: {st['min_mbps']:5.1f}  [dim]|[/dim]  Max: {st['max_mbps']:5.1f}"
+                f"[dim]|[/dim]  {min_str}  [dim]|[/dim]  {max_str}"
             )
             ul_l2 = (
                 f"[{bar}] {pct:4.1f}% [dim]({mb:.0f}/{self.upload_target_mb:.0f} MB)[/dim]  "
@@ -681,12 +694,14 @@ def run_download_phase(
             step += 1
             bar = make_ascii_bar(progress, width=12)
             cur_mb = min(target_mb, stats["total_bytes"] / (1024 * 1024))
+            min_str = f"Min: {stats['min_mbps']:5.1f}" if stats["min_mbps"] is not None else "Min:    --"
+            max_str = f"Max: {stats['max_mbps']:5.1f}" if stats["max_mbps"] is not None else "Max:    --"
             sys.stdout.write(
                 f"{CLEAR_LINE}{COLOR_GREEN}{spin}{COLOR_RESET} "
                 f"{COLOR_BOLD}Download:{COLOR_RESET} [{bar}] {progress*100:4.1f}%  "
                 f"{COLOR_DIM}|{COLOR_RESET} Current: {COLOR_GREEN}{COLOR_BOLD}{stats['inst_mbps']:7.2f} Mbps{COLOR_RESET}  "
                 f"{COLOR_DIM}|{COLOR_RESET} Avg: {COLOR_GREEN}{stats['avg_mbps']:7.2f} Mbps{COLOR_RESET}  "
-                f"{COLOR_DIM}|{COLOR_RESET} Min: {stats['min_mbps']:5.1f} Max: {stats['max_mbps']:5.1f}  "
+                f"{COLOR_DIM}|{COLOR_RESET} {min_str} {max_str}  "
                 f"{COLOR_DIM}|{COLOR_RESET} {cur_mb:.1f} / {target_mb:.0f} MB"
             )
             sys.stdout.flush()
@@ -792,12 +807,14 @@ def run_upload_phase(
             step += 1
             bar = make_ascii_bar(progress, width=12)
             cur_mb = min(target_mb, stats["total_bytes"] / (1024 * 1024))
+            min_str = f"Min: {stats['min_mbps']:5.1f}" if stats["min_mbps"] is not None else "Min:    --"
+            max_str = f"Max: {stats['max_mbps']:5.1f}" if stats["max_mbps"] is not None else "Max:    --"
             sys.stdout.write(
                 f"{CLEAR_LINE}{COLOR_BLUE}{spin}{COLOR_RESET} "
                 f"{COLOR_BOLD}Upload:  {COLOR_RESET} [{bar}] {progress*100:4.1f}%  "
                 f"{COLOR_DIM}|{COLOR_RESET} Current: {COLOR_BLUE}{COLOR_BOLD}{stats['inst_mbps']:7.2f} Mbps{COLOR_RESET}  "
                 f"{COLOR_DIM}|{COLOR_RESET} Avg: {COLOR_BLUE}{stats['avg_mbps']:7.2f} Mbps{COLOR_RESET}  "
-                f"{COLOR_DIM}|{COLOR_RESET} Min: {stats['min_mbps']:5.1f} Max: {stats['max_mbps']:5.1f}  "
+                f"{COLOR_DIM}|{COLOR_RESET} {min_str} {max_str}  "
                 f"{COLOR_DIM}|{COLOR_RESET} {cur_mb:.1f} / {target_mb:.0f} MB"
             )
             sys.stdout.flush()

@@ -42,7 +42,7 @@ Prerequisite: Python 3.8+ and Git.
 
 ```bash
 # Clone the repository
-git clone git@github.com:<YOUR_USERNAME>/speedtest-abb.git
+git clone git@github.com:chr0m/speedtest-abb.git
 cd speedtest-abb
 
 # Run installer
@@ -63,7 +63,7 @@ Prerequisite: Python 3.8+ and Git for Windows.
 
 ```powershell
 # Clone the repository
-git clone git@github.com:<YOUR_USERNAME>/speedtest-abb.git
+git clone git@github.com:chr0m/speedtest-abb.git
 cd speedtest-abb
 
 # Run installer
@@ -92,7 +92,7 @@ git init
 git add .
 git commit -m "Initial commit of speedtest-abb"
 git branch -M main
-git remote add origin git@github.com:<YOUR_USERNAME>/speedtest-abb.git
+git remote add origin git@github.com:chr0m/speedtest-abb.git
 git push -u origin main
 ```
 

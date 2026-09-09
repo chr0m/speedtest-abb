@@ -7,15 +7,16 @@ Works cross-platform across **Linux**, **macOS**, and **Windows**.
 ```text
 ╭───────────────────────  Aussie Broadband Speed Test  ────────────────────────╮
 │                                                                              │
-│  Server:      Melbourne, VIC (ID: 14670 · speed.mel.aussiebroadband.com.au)  │
+│  Server:     Melbourne, VIC (ID: 14670 · speed.mel.aussiebroadband.com.au)   │
+│  Client IP:  2403:5814:89a3:0:2983:351a:3dc8:bbd4                            │
 │                                                                              │
-│  ✓ Latency:    10.3 ms  |  Min: 8.9 ms  |  Max: 12.1 ms  |  Jitter: 1.2 ms   │
+│  ✓ Latency:   10.3 ms  |  Min: 8.9 ms  |  Max: 12.1 ms  |  Jitter: 1.2 ms    │
 │                                                                              │
-│  ✓ Download:   860.90 Mbps (Avg)  |  Min: 826.6  |  Max: 909.3 Mbps          │
-│               1000.0 MB / 1000 MB (100%) in 9.8s  |  Stability: ▇▇█▇▇▇▇▇▇▇   │
+│  ✓ Download: 860.90 Mbps (Avg)  |  Min: 826.6  |  Max: 909.3 Mbps            │
+│              1000.0 MB / 1000 MB (100%) in 9.8s  |  Stability: ▇▇█▇▇▇▇▇▇▇    │
 │                                                                              │
-│  ✓ Upload:      91.14 Mbps (Avg)  |  Min:  86.2  |  Max:  96.3 Mbps          │
-│               100.0 MB / 100 MB (100%) in 9.2s  |  Stability: █▇▇▇▇▇▇▇▇▇     │
+│  ✓ Upload:   91.14 Mbps (Avg)  |  Min: 86.2  |  Max: 96.3 Mbps               │
+│              100.0 MB / 100 MB (100%) in 9.2s  |  Stability: █▇▇▇▇▇▇▇▇▇      │
 │                                                                              │
 ╰────────────────────────────── ● Test Complete ───────────────────────────────╯
 ```

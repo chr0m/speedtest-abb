@@ -309,6 +309,52 @@ def make_ascii_bar(progress, width=12):
     return "█" * filled + "░" * (width - filled)
 
 
+def get_client_ip(server):
+    """Discover client WAN IP directly via Ookla server or fallback services."""
+    host = server.get("host")
+    port = server.get("port", 8080)
+
+    # 1. Try TCP GETIP command on speedtest server (Fastest, ~10ms)
+    try:
+        sock = socket.create_connection((host, port), timeout=2.0)
+        sock.sendall(b"HI\n")
+        sock.recv(512)
+        sock.sendall(b"GETIP\n")
+        resp = sock.recv(512).decode("utf-8", errors="ignore").strip()
+        sock.close()
+        if resp.startswith("YOURIP"):
+            parts = resp.split()
+            if len(parts) >= 2:
+                return parts[1]
+    except Exception:
+        pass
+
+    # 2. Try HTTP /getip endpoint on Ookla server
+    try:
+        ctx = ssl.create_default_context()
+        url = f"https://{host}:{port}/getip"
+        req = urllib.request.Request(url, headers={"User-Agent": "speedtest-abb/1.0"})
+        with urllib.request.urlopen(req, timeout=2.0, context=ctx) as r:
+            ip = r.read().decode("utf-8", errors="ignore").strip()
+            if ip:
+                return ip
+    except Exception:
+        pass
+
+    # 3. Fallback to public IP services
+    for fallback_url in ["https://api64.ipify.org", "https://icanhazip.com"]:
+        try:
+            req = urllib.request.Request(fallback_url, headers={"User-Agent": "speedtest-abb/1.0"})
+            with urllib.request.urlopen(req, timeout=2.0) as r:
+                ip = r.read().decode("utf-8", errors="ignore").strip()
+                if ip:
+                    return ip
+        except Exception:
+            pass
+
+    return "Unknown"
+
+
 # ============================================================================
 # Rich Dashboard Renderer
 # ============================================================================
@@ -316,8 +362,9 @@ def make_ascii_bar(progress, width=12):
 class RichDashboard:
     """Manages the progressive live dashboard layout with fixed width."""
 
-    def __init__(self, server, download_target_mb=1000.0, upload_target_mb=100.0):
+    def __init__(self, server, client_ip=None, download_target_mb=1000.0, upload_target_mb=100.0):
         self.server = server
+        self.client_ip = client_ip
         self.console = Console()
         self.download_target_mb = download_target_mb
         self.upload_target_mb = upload_target_mb
@@ -396,9 +443,11 @@ class RichDashboard:
         table.add_column(style="bold", no_wrap=True)
         table.add_column(no_wrap=True)
 
-        # 1. Server Row
+        # 1. Server & Client Rows
         server_str = f"[bold cyan]{self.server['city']}[/bold cyan] [dim](ID: {self.server['id']} · {self.server['host']})[/dim]"
         table.add_row("[dim]Server:[/dim]", server_str)
+        if self.client_ip:
+            table.add_row("[dim]Client IP:[/dim]", f"[bold white]{self.client_ip}[/bold white]")
         table.add_row("", "")
 
         # 2. Ping Row
@@ -866,7 +915,7 @@ def format_box_line(content, width, center=False, border_color=COLOR_CYAN, reset
     return f"{border_color}║{reset}{content}{' ' * rpad}{border_color}║{reset}"
 
 
-def print_fallback_summary(server, ping_res, dl_res, ul_res):
+def print_fallback_summary(server, ping_res, dl_res, ul_res, client_ip=None):
     width = 72
     top = f"{COLOR_CYAN}╔" + "═" * width + f"╗{COLOR_RESET}"
     mid = f"{COLOR_CYAN}╠" + "═" * width + f"╣{COLOR_RESET}"
@@ -880,6 +929,8 @@ def print_fallback_summary(server, ping_res, dl_res, ul_res):
     print(format_box_line(title, width, center=True))
     print(mid)
     print(format_box_line(server_line, width))
+    if client_ip:
+        print(format_box_line(f"  Client IP: {client_ip}", width))
 
     if ping_res:
         ping_line = (
@@ -1026,13 +1077,25 @@ def main():
             sys.stdout.write(f"{CLEAR_LINE}")
             sys.stdout.flush()
 
+    # Discover client WAN IP directly via server
+    client_ip = get_client_ip(server)
+
     dashboard = None
     if use_rich:
-        dashboard = RichDashboard(server, download_target_mb=args.download_mb, upload_target_mb=args.upload_mb)
+        dashboard = RichDashboard(
+            server,
+            client_ip=client_ip,
+            download_target_mb=args.download_mb,
+            upload_target_mb=args.upload_mb,
+        )
         dashboard.start()
     elif not quiet:
         print(f"\n{COLOR_BOLD}Aussie Broadband Speed Test{COLOR_RESET}")
-        print(f"Testing against: {COLOR_CYAN}{server['city']}{COLOR_RESET} ({server['host']})\n")
+        print(f"Testing against: {COLOR_CYAN}{server['city']}{COLOR_RESET} ({server['host']})")
+        if client_ip:
+            print(f"Client WAN IP:   {COLOR_BOLD}{client_ip}{COLOR_RESET}\n")
+        else:
+            print()
         if is_tty:
             sys.stdout.write(HIDE_CURSOR)
             sys.stdout.flush()
@@ -1086,6 +1149,9 @@ def main():
     if args.json:
         output_data = {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "client": {
+                "ip": client_ip,
+            },
             "server": {
                 "key": selected_key,
                 "city": server["city"],
@@ -1098,7 +1164,7 @@ def main():
         }
         print(json.dumps(output_data, indent=2))
     elif not use_rich:
-        print_fallback_summary(server, ping_results, dl_results, ul_results)
+        print_fallback_summary(server, ping_results, dl_results, ul_results, client_ip=client_ip)
 
     return 0
 

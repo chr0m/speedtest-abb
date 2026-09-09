@@ -392,8 +392,8 @@ class RichDashboard:
 
     def render(self):
         table = Table.grid(padding=(0, 1))
-        table.add_column(style="bold", width=12)
-        table.add_column()
+        table.add_column(style="bold", no_wrap=True)
+        table.add_column(no_wrap=True)
 
         # 1. Server Row
         server_str = f"[bold cyan]{self.server['city']}[/bold cyan] [dim](ID: {self.server['id']} · {self.server['host']})[/dim]"
@@ -438,7 +438,7 @@ class RichDashboard:
             st = dl["stats"]
             raw_mb = st["total_bytes"] / (1024 * 1024)
             mb = min(self.download_target_mb, raw_mb)
-            bar = make_ascii_bar(dl["progress"], width=10)
+            bar = make_ascii_bar(dl["progress"], width=8)
             spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = dl["progress"] * 100.0
             dl_l1 = (
@@ -446,7 +446,7 @@ class RichDashboard:
                 f"[dim]|[/dim]  Min: {st['min_mbps']:5.1f}  [dim]|[/dim]  Max: {st['max_mbps']:5.1f}"
             )
             dl_l2 = (
-                f"[{bar}] {pct:4.1f}% [dim]({mb:.1f} / {self.download_target_mb:.0f} MB)[/dim]  "
+                f"[{bar}] {pct:4.1f}% [dim]({mb:.0f}/{self.download_target_mb:.0f} MB)[/dim]  "
                 f"[dim]|[/dim]  [dim]Stability:[/dim] [green]{spark}[/green]"
             )
             table.add_row(f"[green]{dl['spin']} Download:[/green]", f"{dl_l1}\n{dl_l2}")
@@ -475,7 +475,7 @@ class RichDashboard:
             st = ul["stats"]
             raw_mb = st["total_bytes"] / (1024 * 1024)
             mb = min(self.upload_target_mb, raw_mb)
-            bar = make_ascii_bar(ul["progress"], width=10)
+            bar = make_ascii_bar(ul["progress"], width=8)
             spark = generate_sparkline(st.get("rates", []), width=10, max_rate=st.get("max_mbps"))
             pct = ul["progress"] * 100.0
             ul_l1 = (
@@ -483,7 +483,7 @@ class RichDashboard:
                 f"[dim]|[/dim]  Min: {st['min_mbps']:5.1f}  [dim]|[/dim]  Max: {st['max_mbps']:5.1f}"
             )
             ul_l2 = (
-                f"[{bar}] {pct:4.1f}% [dim]({mb:.1f} / {self.upload_target_mb:.0f} MB)[/dim]  "
+                f"[{bar}] {pct:4.1f}% [dim]({mb:.0f}/{self.upload_target_mb:.0f} MB)[/dim]  "
                 f"[dim]|[/dim]  [dim]Stability:[/dim] [blue]{spark}[/blue]"
             )
             table.add_row(f"[blue]{ul['spin']} Upload:[/blue]", f"{ul_l1}\n{ul_l2}")
@@ -498,7 +498,8 @@ class RichDashboard:
         else:
             sub_text = "[cyan]Testing throughput... (Ctrl+C to abort)[/cyan]"
 
-        panel_width = min(max(60, self.console.width), 84)
+        # Standardize fixed width to 80 columns (locked across all test phases)
+        panel_width = min(80, max(40, self.console.width))
 
         panel = Panel(
             table,
@@ -508,7 +509,7 @@ class RichDashboard:
             box=box.ROUNDED,
             padding=(1, 2),
             width=panel_width,
-            expand=False,
+            expand=True,
         )
         return panel
 

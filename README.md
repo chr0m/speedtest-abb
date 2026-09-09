@@ -8,7 +8,8 @@ Works cross-platform across **Linux**, **macOS**, and **Windows**.
 ╭───────────────────────  Aussie Broadband Speed Test  ────────────────────────╮
 │                                                                              │
 │  Server:     Melbourne, VIC (ID: 14670 · speed.mel.aussiebroadband.com.au)   │
-│  Client IP:  2403:5814:89a3:0:2983:351a:3dc8:bbd4                            │
+│  Client IP:  159.196.76.66 (IPv4)                                            │
+│              2403:5814:89a3:0:2983:351a:3dc8:bbd4 (IPv6)                     │
 │                                                                              │
 │  ✓ Latency:   10.3 ms  |  Min: 8.9 ms  |  Max: 12.1 ms  |  Jitter: 1.2 ms    │
 │                                                                              │
@@ -52,6 +53,7 @@ The installer will:
   - **Live Sparklines**: Real-time unicode sparkline graph (` ▂▃▅▆▇█`) representing throughput consistency.
   - **Latency & Jitter**: Accurate TCP socket ping probe to port 8080 with automatic fallback to HTTPS.
 - **Fixed Transfer Targets**: Tests **1000 MB (1 GB)** download and **100 MB** upload by default, with exact byte clamping.
+- **Dual-Stack WAN IP Detection**: Concurrently discovers both public IPv4 and IPv6 client addresses directly from the speed test server in < 50ms, with clean single-stack fallback when IPv6 or IPv4 is disabled (e.g. VPNs).
 - **Zero Root / Sudo Required**: Fully installs into an isolated user-space virtual environment.
 - **Automation Ready**: Output clean, pipeable JSON via `--json`.
 

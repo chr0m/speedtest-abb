@@ -200,15 +200,7 @@ class SpeedTracker:
             if not self.end_time and elapsed >= self.warmup_seconds and inst_mbps > 5.0:
                 self.rate_samples.append(inst_mbps)
 
-            if len(self.rate_samples) >= 3:
-                sorted_rates = sorted(self.rate_samples)
-                # 10th percentile for min (removes transient packet jitter/retransmits)
-                p10_idx = int(len(sorted_rates) * 0.10)
-                # 90th percentile for max (removes transient OS socket buffer burst, Ookla method)
-                p90_idx = min(len(sorted_rates) - 1, int(len(sorted_rates) * 0.90))
-                min_mbps = sorted_rates[p10_idx]
-                max_mbps = sorted_rates[p90_idx]
-            elif self.rate_samples:
+            if self.rate_samples:
                 min_mbps = min(self.rate_samples)
                 max_mbps = max(self.rate_samples)
             else:
